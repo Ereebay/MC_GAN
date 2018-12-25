@@ -103,7 +103,7 @@ class TextDataset(data.Dataset):
 
         self.bbox = self.load_bbox()
 
-        split_dir = os.path.join(data_dir,'stack_gan/', split)
+        split_dir = os.path.join(data_dir, split)
         print(split_dir)
         self.filenames = self.load_filenames(split_dir)
         self.embeddings = self.load_embedding(split_dir)
@@ -118,12 +118,12 @@ class TextDataset(data.Dataset):
 
     def load_bbox(self):
         data_dir = self.data_dir
-        bbox_path = os.path.join(data_dir, 'cub/bounding_boxes.txt')
+        bbox_path = os.path.join(data_dir, 'CUB_200_2011/bounding_boxes.txt')
         df_bounding_boxes = pd.read_csv(bbox_path,
                                         delim_whitespace=True,
                                         header=None).astype(int)
         #
-        filepath = os.path.join(data_dir, 'cub/images.txt')
+        filepath = os.path.join(data_dir, 'CUB_200_2011/images.txt')
         df_filenames = \
             pd.read_csv(filepath, delim_whitespace=True, header=None)
         filenames = df_filenames[1].tolist()
@@ -131,7 +131,7 @@ class TextDataset(data.Dataset):
         #
         filename_bbox = {img_file[:-4]: [] for img_file in filenames}
         numImgs = len(filenames)
-        for i in xrange(0, numImgs):
+        for i in range(0, numImgs):
             # bbox = [x-left, y-top, width, height]
             bbox = df_bounding_boxes.iloc[i][1:].tolist()
 
@@ -143,15 +143,15 @@ class TextDataset(data.Dataset):
     def load_all_captions(self):
         def load_captions(caption_name):  # self,
             cap_path = caption_name
-            with open(cap_path, "r") as f:
-                captions = f.read().decode('utf8').split('\n')
+            with open(cap_path, "r", encoding='latin1') as f:
+                captions = f.read().split('\n')
             captions = [cap.replace("\ufffd\ufffd", " ")
                         for cap in captions if len(cap) > 0]
             return captions
 
         caption_dict = {}
         for key in self.filenames:
-            caption_name = '%s/stack_gan/text/%s.txt' % (self.data_dir, key)
+            caption_name = '%s/text_c10/%s.txt' % (self.data_dir, key)
             captions = load_captions(caption_name)
             caption_dict[key] = captions
         return caption_dict
@@ -161,7 +161,7 @@ class TextDataset(data.Dataset):
         embedding_filename = '/char-CNN-RNN-embeddings.pickle'
 
         with open(data_dir + embedding_filename, 'rb') as f:
-            embeddings = pickle.load(f)
+            embeddings = pickle.load(f, encoding='latin1')
             embeddings = np.array(embeddings)
             # embedding_shape = [embeddings.shape[-1]]
             print('embeddings: ', embeddings.shape)
@@ -170,7 +170,7 @@ class TextDataset(data.Dataset):
     def load_class_id(self, data_dir, total_num):
         if os.path.isfile(data_dir + '/class_info.pickle'):
             with open(data_dir + '/class_info.pickle', 'rb') as f:
-                class_id = pickle.load(f)
+                class_id = pickle.load(f, encoding='latin1')
         else:
             class_id = np.arange(total_num)
         return class_id
@@ -178,7 +178,7 @@ class TextDataset(data.Dataset):
     def load_filenames(self, data_dir):
         filepath = os.path.join(data_dir, 'filenames.pickle')
         with open(filepath, 'rb') as f:
-            filenames = pickle.load(f)
+            filenames = pickle.load(f, encoding='latin1')
         print('Load filenames from: %s (%d)' % (filepath, len(filenames)))
         return filenames
 
@@ -193,8 +193,8 @@ class TextDataset(data.Dataset):
             data_dir = self.data_dir
         # captions = self.captions[key]
         embeddings = self.embeddings[index, :, :]
-        img_name = '%s/cub/images/%s.jpg' % (data_dir, key)
-        seg_name = '%s/cub/segmentations/%s.png' %(data_dir, key)
+        img_name = '%s/CUB_200_2011/images/%s.jpg' % (data_dir, key)
+        seg_name = '%s/CUB_200_2011/segmentations/%s.png' % (data_dir, key)
         (imgs, segs) = get_imgs(img_name, seg_name, self.imsize,
                         bbox, self.transform, normalize=self.norm)
 
@@ -206,8 +206,8 @@ class TextDataset(data.Dataset):
             wrong_bbox = self.bbox[wrong_key]
         else:
             wrong_bbox = None
-        wrong_img_name = '%s/cub/images/%s.jpg' % (data_dir, wrong_key)
-        wrong_seg_name = '%s/cub/segmentations/%s.png' %(data_dir, wrong_key)
+        wrong_img_name = '%s/CUB_200_2011/images/%s.jpg' % (data_dir, wrong_key)
+        wrong_seg_name = '%s/CUB_200_2011/segmentations/%s.png' %(data_dir, wrong_key)
         wrong_imgs, wrong_segs = get_imgs(wrong_img_name,wrong_seg_name, self.imsize,
                               wrong_bbox, self.transform, normalize=self.norm)
 
@@ -217,7 +217,7 @@ class TextDataset(data.Dataset):
             embedding = self.target_transform(embedding)
 
         base_key = key.split('/')
-        base_img_name = '%s/cub/base_images/%s' % (data_dir, base_key[0])
+        base_img_name = '%s/CUB_200_2011/base_images/%s' % (data_dir, base_key[0])
 
         return imgs, segs, wrong_imgs, wrong_segs, embedding, base_img_name # captions
 
@@ -231,8 +231,8 @@ class TextDataset(data.Dataset):
             data_dir = self.data_dir
         # captions = self.captions[key]
         embeddings = self.embeddings[index, :, :]
-        img_name = '%s/cub/images/%s.jpg' % (data_dir, key)
-        seg_name = '%s/cub/segmentations/%s.png' % (data_dir, key)
+        img_name = '%s/CUB_200_2011/images/%s.jpg' % (data_dir, key)
+        seg_name = '%s/CUB_200_2011/segmentations/%s.png' % (data_dir, key)
         imgs, _ = get_imgs(img_name, seg_name, self.imsize,
                         bbox, self.transform, normalize=self.norm)
 
@@ -240,7 +240,7 @@ class TextDataset(data.Dataset):
             embeddings = self.target_transform(embeddings)
 
         base_key = key.split('/')
-        base_img_name = '%s/cub/base_images/%s' % (data_dir, base_key[0])
+        base_img_name = '%s/CUB_200_2011/base_images/%s' % (data_dir, base_key[0])
 
         return imgs, embeddings, key, base_img_name # captions
 

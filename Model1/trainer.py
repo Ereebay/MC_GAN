@@ -484,8 +484,8 @@ class condGANTrainer(object):
             Loss_D: %.2f Loss_G: %.2f Loss_KL: %.2f Loss_pair: %.2f Loss_BG: %.2f Time: %.2fs
                       '''  # D(real): %.4f D(wrong):%.4f  D(fake) %.4f
                   % (epoch, self.max_epoch, self.num_batches,
-                     errD_total.data[0], errG_total.data[0], kl_loss.data[0],
-                     errG_pair.data[0], errG_BG.data[0], end_t - start_t))
+                     errD_total.item(), errG_total.item(), kl_loss.item(),
+                     errG_pair.item(), errG_BG.item(), end_t - start_t))
 
         save_model(self.netG, avg_param_G, self.netsD, count, self.model_dir)
 

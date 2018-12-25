@@ -211,7 +211,7 @@ if __name__ == '__main__':
                                   transforms.RandomCrop(64),
                                   transforms.RandomHorizontalFlip(),
                                   transforms.ToTensor(),
-                                transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+                                  transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
                               ]))
 
     train_loader = data.DataLoader(train_data,

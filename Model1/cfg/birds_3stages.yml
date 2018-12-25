@@ -4,7 +4,7 @@ CONFIG_NAME: 'MC_GAN'
 DATASET_NAME: 'birds'
 EMBEDDING_TYPE: 'cnn-rnn'
 #DATA_DIR: '../../DATA/CUB200_2011'
-DATA_DIR: '../../../../DATA/cub_200_2011'
+DATA_DIR: '/home/jxk/stackgan/Data/birds'
 #GPU_ID: '1'
 WORKERS: 4
 
