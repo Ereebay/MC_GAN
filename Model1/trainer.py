@@ -1,4 +1,3 @@
-from __future__ import print_function
 from six.moves import range
 
 import torch.backends.cudnn as cudnn
@@ -198,6 +197,8 @@ class condGANTrainer(object):
 
         self.batch_size = cfg.TRAIN.BATCH_SIZE * self.num_gpus
         self.max_epoch = cfg.TRAIN.MAX_EPOCH
+        self.classid=None
+        self.captions=None
 
         self.data_loader = data_loader
         self.num_batches = len(self.data_loader)
@@ -208,7 +209,7 @@ class condGANTrainer(object):
             self.base_num = 1217
 
     def prepare_data(self, data):
-        imgs, segs, w_imgs, w_segs, t_embedding, _, = data
+        imgs, segs, w_imgs, w_segs, t_embedding, _, classid, captions = data
 
         this_batch = imgs[0].size(0)
         crop_vbase= []
@@ -230,11 +231,11 @@ class condGANTrainer(object):
                 crop_base_imgs[step, :] = crop_base
 
             if cfg.CUDA:
-                crop_vbase.append(Variable(crop_base_imgs).cuda())
+                crop_vbase.append(crop_base_imgs.cuda())
             else:
-                crop_vbase.append(Variable(crop_base_imgs))
+                crop_vbase.append(crop_base_imgs)
 
-        real_vimgs, real_vsegs, wrong_vimgs, wrong_vsegs = [], [], [], []
+        real_vimgs, real_vsegs, wrong_vimgs, wrong_vsegs, classid_v, captions_v = [], [], [], [], [], []
         if cfg.CUDA:
             vembedding = Variable(t_embedding).cuda()
         else:
@@ -252,7 +253,7 @@ class condGANTrainer(object):
                 wrong_vimgs.append(Variable(w_imgs[i]))
                 wrong_vsegs.append(Variable(w_segs[i]))
 
-        return real_vimgs, real_vsegs, wrong_vimgs, wrong_vsegs, vembedding, crop_vbase
+        return real_vimgs, real_vsegs, wrong_vimgs, wrong_vsegs, vembedding, crop_vbase, classid, captions
 
     def train_Dnet(self, idx):
 
@@ -426,7 +427,9 @@ class condGANTrainer(object):
                 # (0) Prepare training data
                 ######################################################
                 self.real_imgs, self.real_segs, self.wrong_imgs, self.wrong_segs, \
-                self.txt_embedding, self.crop_base = self.prepare_data(data)
+                self.txt_embedding, self.crop_base, self.classid, self.captions = self.prepare_data(data)
+
+
 
                 #######################################################
                 # (1) Generate fake images
@@ -434,6 +437,7 @@ class condGANTrainer(object):
                 noise.data.normal_(0, 1)
                 self.fake_imgs, self.fake_segs, self.mu, self.logvar = \
                     self.netG(noise, self.txt_embedding, self.crop_base)
+
                 #######################################################
                 # (2) Update D network
                 ######################################################
@@ -455,6 +459,8 @@ class condGANTrainer(object):
 
                 count = count + 1
 
+
+
                 if count % self.SNAPSHOT_INTERVAL == 0:
                     save_model(self.netG, avg_param_G, self.netsD, count, self.model_dir)
                     # Save images
@@ -463,6 +469,20 @@ class condGANTrainer(object):
                     #
                     self.fake_imgs, self.fake_segs, _, _ = \
                         self.netG(fixed_noise, self.txt_embedding, self.crop_base)
+                    pfi_test = open(
+                        "../examples/kdd/test/test%d_step%d.txt" % (epoch, step),
+                        "w", encoding='latin1')
+                    for i in range(32):
+                        save_image((self.fake_imgs[-1].data[i] + 1) * 0.5,
+                                   '../examples/kdd/test/class%d_epoch%d_step%d_num%d.png' % (
+                                   self.classid[i], epoch, step, i))
+                        save_image((self.crop_base[-1].data[i] + 1) * 0.5,
+                                   '../examples/kdd/test/class%d_base%d_step%d_num%d.png' % (
+                                   self.classid[i], epoch, step, i))
+                        pfi_test.write('\n***row %d***\n' % i)
+                        pfi_test.write(self.captions[i])
+                        # pfi_train.close()
+                    pfi_test.close()
                     save_image((self.fake_imgs[-1].data + 1) * 0.5,'../examples/{}/Image/Image_ep{}.png'.format(self.output_dir, epoch + 1))
                     save_image((self.fake_segs[-1].data + 1) * 0.5, '../examples/{}/Image/Seg_ep{}.png'.format(self.output_dir, epoch + 1))
                     save_image((self.crop_base[-1].data + 1) * 0.5, '../examples/{}/Image/BASE_ep{}.png'.format(self.output_dir, epoch + 1))
@@ -551,7 +571,7 @@ class condGANTrainer(object):
             save_dir = '%s/iteration%d' % (s_tmp, iteration)
 
             nz = cfg.GAN.Z_DIM
-            noise = Variable(torch.FloatTensor(self.batch_size, nz))
+            noise = torch.FloatTensor(self.batch_size, nz)
             if cfg.CUDA:
                 netG.cuda()
                 noise = noise.cuda()
@@ -585,14 +605,12 @@ class condGANTrainer(object):
                     crop_base_imgs[step, :] = crop_base
 
                 if cfg.CUDA:
-                    crop_vbase.append(Variable(crop_base_imgs).cuda())
+                    crop_vbase.append(crop_base_imgs.cuda())
+                    t_embeddings = t_embeddings.cuda()
                 else:
-                    crop_vbase.append(Variable(crop_base_imgs))
+                    crop_vbase.append(crop_base_imgs)
+                    t_embeddings = t_embeddings
 
-                if cfg.CUDA:
-                    t_embeddings = Variable(t_embeddings).cuda()
-                else:
-                    t_embeddings = Variable(t_embeddings)
                 for i in range(embedding_dim):
                     fake_imgs, fake_segs, _, _ = netG(noise, t_embeddings[:, i, :], crop_vbase)
                     self.save_singleimages(fake_imgs, fake_segs[-1], crop_vbase[0],

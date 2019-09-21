@@ -1,7 +1,11 @@
-from __future__ import print_function
+
 import torch
+import os
+import sys
 import torchvision.transforms as transforms
 
+dir_path = (os.path.abspath(os.path.join(os.path.realpath(__file__), './.')))
+sys.path.append(dir_path)
 import argparse
 import os
 import random
@@ -10,10 +14,8 @@ import pprint
 import datetime
 import dateutil.tz
 import time
-
 from MyTransform import *
-dir_path = (os.path.abspath(os.path.join(os.path.realpath(__file__), './.')))
-sys.path.append(dir_path)
+
 from miscc.config import cfg, cfg_from_file
 
 ################################   NOTICE   ###########################################

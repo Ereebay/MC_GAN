@@ -1,11 +1,11 @@
 
 CONFIG_NAME: 'MC_GAN'
 
-DATASET_NAME: 'birds'
+DATASET_NAME: 'flowers'
 EMBEDDING_TYPE: 'cnn-rnn'
 #DATA_DIR: '../../DATA/CUB200_2011'
-DATA_DIR: '/home/jxk/projects/StackGAN-v2/data/birds'
-GPU_ID: '0'
+DATA_DIR: '/home/jxk/stackgan/Data/flowers'
+GPU_ID: '1'
 WORKERS: 4
 
 
@@ -16,8 +16,8 @@ TREE:
 
 TRAIN:
     FLAG: True
-    NET_G: '' #'/home/jxk/MC_GAN/examples/birds_MC_GAN_2018_12_25_11_54_15/Model/netG_405720.pth'
-    NET_D: '' #'/home/jxk/MC_GAN/examples/birds_MC_GAN_2018_12_25_11_54_15/Model/netD.pth'
+    NET_G: # '/home/jxk/MC_GAN/examples/flowers_MC_GAN_2019_02_01_00_30_32/Model/netG_176295.pth' #'../examples/birds_code27_128V4_2018_04_22_20_19_27/Model/netG_80000.pth'
+    NET_D: # '/home/jxk/MC_GAN/examples/flowers_MC_GAN_2019_02_01_00_30_32/Model/netD'  #'../examples/birds_code27_128V4_2018_04_22_20_19_27/Model/netD'
     BATCH_SIZE: 32
     MAX_EPOCH: 1500
     SNAPSHOT_INTERVAL: 5000

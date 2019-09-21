@@ -106,7 +106,7 @@ class Synthesis_Block(nn.Module):
 
     def forward(self, fg, bg):
         out = self.fg_block(fg)
-        out_ = out[:,:self.channel]
+        out_ = out[:, :self.channel]
         out_switch = F.sigmoid(out[:, self.channel:])
         actmap = torch.mean(out_switch,1)
         residual = torch.mul(bg, out_switch)
@@ -195,15 +195,20 @@ class INIT_STAGE_G(nn.Module):
     def forward(self, z_code, c_code, base_img):
         in_code = torch.cat((c_code, z_code), 1)
 
-
+        # out:1024*8*8
         fg_code = self.fc(in_code)
         fg_code = fg_code.view(-1, self.gf_dim, self.k_size, self.k_size)
 
+        #128 * 64 * 64
         bg_code1 = self.img_block1(base_img)
+        # 256 * 32 * 32
         bg_code2 = self.img_block2(bg_code1)
+        # 512 * 16 * 16
         bg_code3 = self.img_block3(bg_code2)
+        # 1024 * 8 * 8
         bg_code4 = self.img_block4(bg_code3)
 
+        #
         out_code1 = self.synthesis1(fg_code, bg_code4)
         out_code1 = self.upsample1(out_code1)
 

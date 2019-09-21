@@ -1,12 +1,5 @@
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
-from __future__ import unicode_literals
-
-
 import torch.utils.data as data
 import torchvision.transforms as transforms
-
 from PIL import Image
 import PIL
 import os
@@ -25,10 +18,7 @@ import six
 import string
 import sys
 import torch
-if sys.version_info[0] == 2:
-    import cPickle as pickle
-else:
-    import pickle
+import pickle
 
 IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG',
                   '.png', '.PNG', '.ppm', '.PPM', '.bmp', '.BMP']
@@ -46,6 +36,9 @@ def get_imgs(img_path, seg_name, imsize, bbox=None,
     temp_seg = (temp_seg * 255).astype(np.uint8)
     seg = Image.fromarray(temp_seg)
     width, height = img.size
+    temp_normalize = transforms.Compose([
+        transforms.ToTensor()
+    ])
     if bbox is not None:
         r = int(np.maximum(bbox[2], bbox[3]))
         center_x = int((2 * bbox[0] + bbox[2]) / 2)
@@ -73,7 +66,10 @@ def get_imgs(img_path, seg_name, imsize, bbox=None,
             re_img = img
             re_seg = seg
         ret_img.append(normalize(re_img))
-        ret_seg.append(normalize(re_seg))
+        re_seg = temp_normalize(re_seg)
+        re_seg = re_seg * 2 - 1
+        ret_seg.append(re_seg)
+        # ret_seg.append(normalize(re_seg))
 
     return ret_img, ret_seg
 
@@ -150,8 +146,17 @@ class TextDataset(data.Dataset):
             return captions
 
         caption_dict = {}
+        temp = 0
         for key in self.filenames:
-            caption_name = '%s/text_c10/%s.txt' % (self.data_dir, key)
+            # print(key)
+            # classid = self.class_id[temp]
+            # temp = temp + 1
+            # if key.find('jpg/') != -1:  # flowers dataset
+            #     class_name = 'class_%05d/' % classid
+            #     key = key.replace('jpg/', class_name)
+            # caption_name = '%s/text_c10/%s.txt' % \
+            #            (self.data_dir, key)
+            caption_name = '%s/text/%s.txt' % (self.data_dir, key)
             captions = load_captions(caption_name)
             caption_dict[key] = captions
         return caption_dict
@@ -185,13 +190,14 @@ class TextDataset(data.Dataset):
 
     def prepair_training_pairs(self, index):
         key = self.filenames[index]
+        classid = self.class_id[index]
         if self.bbox is not None:
             bbox = self.bbox[key]
             data_dir = '%s' % self.data_dir
         else:
             bbox = None
             data_dir = self.data_dir
-        # captions = self.captions[key]
+        captions = self.captions[key]
         embeddings = self.embeddings[index, :, :]
         img_name = '%s/CUB_200_2011/images/%s.jpg' % (data_dir, key)
         seg_name = '%s/CUB_200_2011/segmentations/%s.png' % (data_dir, key)
@@ -213,15 +219,17 @@ class TextDataset(data.Dataset):
 
         embedding_ix = random.randint(0, embeddings.shape[0] - 1)
         embedding = embeddings[embedding_ix, :]
+        captions = captions[embedding_ix]
         if self.target_transform is not None:
             embedding = self.target_transform(embedding)
 
         base_key = key.split('/')
         base_img_name = '%s/CUB_200_2011/base_images/%s' % (data_dir, base_key[0])
 
-        return imgs, segs, wrong_imgs, wrong_segs, embedding, base_img_name # captions
+        return imgs, segs, wrong_imgs, wrong_segs, embedding, base_img_name, classid, captions # captions
 
     def prepair_test_pairs(self, index):
+        classid = self.class_id[index]
         key = self.filenames[index]
         if self.bbox is not None:
             bbox = self.bbox[key]
@@ -229,7 +237,7 @@ class TextDataset(data.Dataset):
         else:
             bbox = None
             data_dir = self.data_dir
-        # captions = self.captions[key]
+        captions = self.captions[key]
         embeddings = self.embeddings[index, :, :]
         img_name = '%s/CUB_200_2011/images/%s.jpg' % (data_dir, key)
         seg_name = '%s/CUB_200_2011/segmentations/%s.png' % (data_dir, key)
