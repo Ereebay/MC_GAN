@@ -106,6 +106,7 @@ class TextDataset(data.Dataset):
 
         self.class_id = self.load_class_id(split_dir, len(self.filenames))
         self.captions = self.load_all_captions()
+        self.all_info = self.load_all_info(split_dir)
 
         if cfg.TRAIN.FLAG:
             self.iterator = self.prepair_training_pairs
@@ -187,6 +188,14 @@ class TextDataset(data.Dataset):
         print('Load filenames from: %s (%d)' % (filepath, len(filenames)))
         return filenames
 
+    def load_all_info(self, data_dir):
+        filepath = os.path.join(data_dir, 'all_info.pickle')
+        with open(filepath, 'rb') as f:
+            all_info = pickle.load(f)
+        print('Load all info from : %s (%d)' % (filepath, len(all_info)))
+
+        return all_info
+
 
     def prepair_training_pairs(self, index):
         key = self.filenames[index]
@@ -239,6 +248,7 @@ class TextDataset(data.Dataset):
             data_dir = self.data_dir
         captions = self.captions[key]
         embeddings = self.embeddings[index, :, :]
+        attribute_value = self.all_info[index]['attribute_value']
         img_name = '%s/CUB_200_2011/images/%s.jpg' % (data_dir, key)
         seg_name = '%s/CUB_200_2011/segmentations/%s.png' % (data_dir, key)
         imgs, _ = get_imgs(img_name, seg_name, self.imsize,
@@ -250,7 +260,7 @@ class TextDataset(data.Dataset):
         base_key = key.split('/')
         base_img_name = '%s/CUB_200_2011/base_images/%s' % (data_dir, base_key[0])
 
-        return imgs, embeddings, key, base_img_name # captions
+        return imgs, embeddings, key, base_img_name, captions, attribute_value # captions
 
     def __getitem__(self, index):
         return self.iterator(index)

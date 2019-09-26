@@ -208,16 +208,16 @@ class INIT_STAGE_G(nn.Module):
         # 1024 * 8 * 8
         bg_code4 = self.img_block4(bg_code3)
 
-        #
+        #16 × 16
         out_code1 = self.synthesis1(fg_code, bg_code4)
         out_code1 = self.upsample1(out_code1)
-
+        # 32 × 32
         out_code2 = self.synthesis2(out_code1, bg_code3)
         out_code2 = self.upsample2(out_code2)
-
+        # 64 * 64
         out_code3 = self.synthesis3(out_code2, bg_code2)
         out_code3 = self.upsample3(out_code3)
-
+        # 128 * 128
         out_code4 = self.synthesis4(out_code3, bg_code1)
         out_code4 = self.upsample4(out_code4)
 

@@ -1,5 +1,5 @@
 from six.moves import range
-
+import json
 import torch.backends.cudnn as cudnn
 import torch
 import torch.nn as nn
@@ -13,6 +13,7 @@ from PIL import Image
 import cv2
 from copy import deepcopy
 import random
+import torchvision.utils as vutils
 
 from miscc.config import cfg
 from miscc.utils import mkdir_p
@@ -237,21 +238,21 @@ class condGANTrainer(object):
 
         real_vimgs, real_vsegs, wrong_vimgs, wrong_vsegs, classid_v, captions_v = [], [], [], [], [], []
         if cfg.CUDA:
-            vembedding = Variable(t_embedding).cuda()
+            vembedding = t_embedding.cuda()
         else:
-            vembedding = Variable(t_embedding)
+            vembedding = t_embedding
 
         for i in range(self.num_Ds):
             if cfg.CUDA:
-                real_vimgs.append(Variable(imgs[i]).cuda())
-                real_vsegs.append(Variable(segs[i]).cuda())
-                wrong_vimgs.append(Variable(w_imgs[i]).cuda())
-                wrong_vsegs.append(Variable(w_segs[i]).cuda())
+                real_vimgs.append(imgs[i].cuda())
+                real_vsegs.append(segs[i].cuda())
+                wrong_vimgs.append(w_imgs[i].cuda())
+                wrong_vsegs.append(w_segs[i].cuda())
             else:
-                real_vimgs.append(Variable(imgs[i]))
-                real_vsegs.append(Variable(segs[i]))
-                wrong_vimgs.append(Variable(w_imgs[i]))
-                wrong_vsegs.append(Variable(w_segs[i]))
+                real_vimgs.append(imgs[i])
+                real_vsegs.append(segs[i])
+                wrong_vimgs.append(w_imgs[i])
+                wrong_vsegs.append(w_segs[i])
 
         return real_vimgs, real_vsegs, wrong_vimgs, wrong_vsegs, vembedding, crop_vbase, classid, captions
 
@@ -370,7 +371,7 @@ class condGANTrainer(object):
                 for b_idx in range(batch_size):
                     erode_mask[b_idx, :, :, 0] = cv2.erode(erode_mask[b_idx, :, :, 0], kernel, iterations=1)
 
-                BG_mask = Variable(torch.FloatTensor(erode_mask)).cuda()
+                BG_mask = torch.FloatTensor(erode_mask).cuda()
                 BG_mask = BG_mask.permute(0, 3, 1, 2)
                 BG_mask = BG_mask.repeat(1, 3, 1, 1)
                 BG_fake = torch.mul(self.fake_imgs[i], BG_mask)
@@ -397,15 +398,12 @@ class condGANTrainer(object):
         self.criterion = nn.MSELoss()
         self.RC_criterion = nn.L1Loss()
 
-        self.real_labels = \
-            Variable(torch.FloatTensor(self.batch_size).fill_(1))
-        self.fake_labels = \
-            Variable(torch.FloatTensor(self.batch_size).fill_(0))
+        self.real_labels = torch.FloatTensor(self.batch_size).fill_(1)
+        self.fake_labels = torch.FloatTensor(self.batch_size).fill_(0)
 
         nz = cfg.GAN.Z_DIM
-        noise = Variable(torch.FloatTensor(self.batch_size, nz))
-        fixed_noise = \
-            Variable(torch.FloatTensor(self.batch_size, nz).normal_(0, 1))
+        noise = torch.FloatTensor(self.batch_size, nz)
+        fixed_noise = torch.FloatTensor(self.batch_size, nz).normal_(0, 1)
 
         if cfg.CUDA:
             self.criterion.cuda()
@@ -510,8 +508,10 @@ class condGANTrainer(object):
         save_model(self.netG, avg_param_G, self.netsD, count, self.model_dir)
 
 
-    def save_singleimages(self, images, segs, base_img, filenames,
-                          save_dir, sentenceID, imsize):
+    def save_singleimages(self, images, segs, base_img, filenames, 
+                            save_dir, sentenceID, imsize, attribute_values, captions):
+        
+        all_dict = []
 
         for i in range(segs.size(0)):
             result_img = Image.new('RGB', [3 * imsize, imsize])
@@ -522,7 +522,13 @@ class condGANTrainer(object):
                 print('Make a new folder: ', folder)
                 mkdir_p(folder)
 
+            caption = captions[sentenceID][i]
+            from functools import reduce
+            attribute_values = reduce(lambda x, y: torch.cat((x.view(-1, 32), y.view(1, -1)), 0), attribute_values)
+            attribute_value = attribute_values.transpose(0, 1)
+            attribute_value = attribute_value[i].tolist()
             fullpath = '%s_%d_sentence%d.png' % (s_tmp, imsize, sentenceID)
+            savepath = '%s_%d_sentence%d.png' % (filenames[i], imsize, sentenceID)
             # range from [-1, 1] to [0, 255]
             img = images[0][i].add(1).div(2).mul(255).clamp(0, 255).byte()
             ndarr = img.permute(1, 2, 0).data.cpu().numpy()
@@ -541,7 +547,38 @@ class condGANTrainer(object):
             result_img.paste(im=fake_im, box=(imsize, 0))
             result_img.paste(im=fake_seg, box=(imsize * 2, 0))
 
-            result_img.save(fullpath)
+            # result_img.save(fullpath)
+            fake_im.save(fullpath)
+            datum = {'image_file': savepath, 'attribute_value': attribute_value, 'caption': caption}
+            print('file of image:', savepath)
+            print('caption:', caption)
+            all_dict.append(datum)
+
+        return all_dict
+
+    def save_superimages(self, images_list, filenames,
+                         save_dir, split_dir, imsize):
+        batch_size = images_list[0].size(0)
+        num_sentences = len(images_list)
+        for i in range(batch_size):
+            s_tmp = '%s/super/%s/%s' % \
+                    (save_dir, split_dir, filenames[i])
+            folder = s_tmp[:s_tmp.rfind('/')]
+            if not os.path.isdir(folder):
+                print('Make a new folder: ', folder)
+                mkdir_p(folder)
+            #
+            savename = '%s_%d.png' % (s_tmp, imsize)
+            super_img = []
+            for j in range(num_sentences):
+                img = images_list[j][i]
+                # print(img.size())
+                img = img.view(1, 3, imsize, imsize)
+                # print(img.size())
+                super_img.append(img)
+                # break
+            super_img = torch.cat(super_img, 0)
+            vutils.save_image(super_img, savename, nrow=10, normalize=True)
 
     def evaluate(self):
         if cfg.TRAIN.NET_G == '':
@@ -579,15 +616,17 @@ class condGANTrainer(object):
             # switch to evaluate mode
             netG.eval()
             for step, data in enumerate(self.data_loader, 0):
-                imgs, t_embeddings, filenames, _ = data
+                imgs, t_embeddings, filenames, _, captions, attribute_values = data
                 embedding_dim = t_embeddings.size(1)
                 batch_size = imgs[0].size(0)
                 noise.data.resize_(batch_size, nz)
                 noise.data.normal_(0, 1)
 
                 crop_vbase = []
-
-
+                if not os.path.isdir(save_dir):
+                    print('Make a new folder: ', save_dir)
+                    mkdir_p(save_dir)
+                f = open('%s/info.json' % save_dir, 'a')
                 crop_base_imgs = torch.zeros(batch_size, 3, self.img_size, self.img_size)
                 for step, (base_img_list) in enumerate(data[3]):
                     if cfg.DATASET_NAME.find('flower') != -1:
@@ -610,8 +649,15 @@ class condGANTrainer(object):
                 else:
                     crop_vbase.append(crop_base_imgs)
                     t_embeddings = t_embeddings
-
+                fake_img_list = []
                 for i in range(embedding_dim):
                     fake_imgs, fake_segs, _, _ = netG(noise, t_embeddings[:, i, :], crop_vbase)
-                    self.save_singleimages(fake_imgs, fake_segs[-1], crop_vbase[0],
-                                           filenames, save_dir, i, self.img_size)
+                    fake_img_list.append(fake_imgs[0].data.cpu())
+                    all_dict = self.save_singleimages(fake_imgs, fake_segs[-1], crop_vbase[0],
+                                           filenames, save_dir, i, self.img_size, attribute_values, captions)
+                    for item in all_dict:
+                        json.dump(item, f)
+                
+                f.close()
+                self.save_superimages(fake_img_list, filenames,
+                                      save_dir, 'test', 128)
