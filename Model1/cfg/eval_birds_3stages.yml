@@ -17,7 +17,7 @@ TRAIN:
     FLAG: False
     NET_G: '/home/eree/PycharmProjects/MC_GAN/Model1/models/netG_414000.pth' #'/home/jxk/MC_GAN/examples/birds_MC_GAN_2018_12_25_11_54_15/Model/netG_405720.pth'
     NET_D: '' #'/home/jxk/MC_GAN/examples/birds_MC_GAN_2018_12_25_11_54_15/Model/netD.pth'
-    BATCH_SIZE: 32
+    BATCH_SIZE: 20
     MAX_EPOCH: 1500
     SNAPSHOT_INTERVAL: 5000
     DISCRIMINATOR_LR: 0.0002

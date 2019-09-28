@@ -524,7 +524,7 @@ class condGANTrainer(object):
 
             caption = captions[sentenceID][i]
             from functools import reduce
-            attribute_values = reduce(lambda x, y: torch.cat((x.view(-1, 32), y.view(1, -1)), 0), attribute_values)
+            attribute_values = reduce(lambda x, y: torch.cat((x.view(-1, 20), y.view(1, -1)), 0), attribute_values)
             attribute_value = attribute_values.transpose(0, 1)
             attribute_value = attribute_value[i].tolist()
             fullpath = '%s_%d_sentence%d.png' % (s_tmp, imsize, sentenceID)
