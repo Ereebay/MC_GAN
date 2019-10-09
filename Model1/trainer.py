@@ -528,6 +528,7 @@ class condGANTrainer(object):
             attribute_value = attribute_values.transpose(0, 1)
             attribute_value = attribute_value[i].tolist()
             fullpath = '%s_%d_sentence%d.png' % (s_tmp, imsize, sentenceID)
+            fullpath1 = '%s_%d_sentence%d_full.png' % (s_tmp, imsize, sentenceID)
             savepath = '%s_%d_sentence%d.png' % (filenames[i], imsize, sentenceID)
             # range from [-1, 1] to [0, 255]
             img = images[0][i].add(1).div(2).mul(255).clamp(0, 255).byte()
@@ -547,7 +548,7 @@ class condGANTrainer(object):
             result_img.paste(im=fake_im, box=(imsize, 0))
             result_img.paste(im=fake_seg, box=(imsize * 2, 0))
 
-            # result_img.save(fullpath)
+            result_img.save(fullpath1)
             fake_im.save(fullpath)
             datum = {'image_file': savepath, 'attribute_value': attribute_value, 'caption': caption}
             print('file of image:', savepath)
